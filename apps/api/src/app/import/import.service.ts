@@ -40,6 +40,7 @@ import {
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import {
+  AccountWithPlatform,
   AccountWithValue,
   OrderWithAccount,
   UserWithSettings
@@ -49,7 +50,7 @@ import { Injectable } from '@nestjs/common';
 import { Account, DataSource, Prisma } from '@prisma/client';
 import { Big } from 'big.js';
 import { isISIN } from 'class-validator';
-import { isSameSecond, parseISO } from 'date-fns';
+import { isSameSecond, parseISO, subDays } from 'date-fns';
 import { omit, uniqBy } from 'lodash-es';
 import { randomUUID } from 'node:crypto';
 
@@ -113,7 +114,7 @@ export class ImportService {
             userCurrency,
             userId,
             includeDrafts: true,
-            startDate: parseDate(dateOfFirstActivity),
+            startDate: subDays(parseDate(dateOfFirstActivity), 1),
             withExcludedAccountsAndActivities: true
           }),
           this.symbolProfileService.getSymbolProfiles([
@@ -802,11 +803,14 @@ export class ImportService {
         })
     );
 
-    const accounts = (await this.accountService.getAccounts(user.id)).map(
-      ({ id, name }) => {
-        return { id, name };
-      }
-    );
+    const accounts: Pick<AccountWithPlatform, 'id' | 'name' | 'platform'>[] = (
+      await this.accountService.accounts({
+        include: { platform: true },
+        where: { userId: user.id }
+      })
+    ).map(({ id, name, platform }) => {
+      return { id, name, platform };
+    });
 
     if (isDryRun) {
       accountsWithBalancesDto
@@ -948,7 +952,7 @@ export class ImportService {
       let order:
         | OrderWithAccount
         | (Omit<OrderWithAccount, 'account' | 'SymbolProfile' | 'tags'> & {
-            account?: { id: string; name: string };
+            account?: Pick<AccountWithPlatform, 'id' | 'name' | 'platform'>;
             tags?: { id: string; name: string }[];
           });
 

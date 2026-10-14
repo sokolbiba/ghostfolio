@@ -91,7 +91,7 @@ describe('ImportService', () => {
           .mockResolvedValue([
             { currency: 'USD', id: BANK_ACCOUNT_ID, name: 'Bank' }
           ]),
-        getAccounts
+        accounts: jest.fn().mockResolvedValue([])
       } as unknown as AccountService,
       {
         createActivity,
